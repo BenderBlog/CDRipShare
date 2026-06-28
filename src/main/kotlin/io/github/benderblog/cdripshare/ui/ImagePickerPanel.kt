@@ -189,7 +189,7 @@ private fun PaletteColorPickerDialog(
                 }
                 Text("预设色", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("505A88","3A5070","2E3640","585858","425A46","584A3E","383838").forEach { h ->
+                    listOf("505A88","3A5070","585858","425A46","584A3E","383838").forEach { h ->
                         val c = parseHexColor("#$h")
                         Surface(modifier = Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { hue = hueFromColor(c); sat = satFromColor(c); value = valueFromColor(c) }, color = c, shape = RoundedCornerShape(6.dp)) {}
                     }
