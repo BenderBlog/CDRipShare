@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.benderblog.cdripshare.model.AudioOutputMode
+import io.github.benderblog.cdripshare.model.BackgroundMode
 import io.github.benderblog.cdripshare.model.Phase
 import io.github.benderblog.cdripshare.model.VideoCodec
 import io.github.benderblog.cdripshare.viewmodel.MainViewModel
@@ -60,6 +61,8 @@ fun App(viewModel: MainViewModel) {
                             coverPreview = viewModel.coverPreview.value,
                             onSelect = { pickImageFile(viewModel) },
                             enabled = !isWorking,
+                            bgMode = viewModel.bgMode.value,
+                            onBgModeChange = { viewModel.bgMode.value = it },
                             modifier = Modifier.weight(0.3f).fillMaxHeight()
                         )
                     }
