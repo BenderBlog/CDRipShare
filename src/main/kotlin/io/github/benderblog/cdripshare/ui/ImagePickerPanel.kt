@@ -1,7 +1,10 @@
 package io.github.benderblog.cdripshare.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,9 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -51,154 +59,81 @@ fun ImagePickerPanel(
     var showColorDialog by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .verticalScroll(rememberScrollState()),
+        modifier = modifier.fillMaxWidth().fillMaxHeight().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            "封面图片",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Text("封面图片", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
 
-        // 正方形预览区
         Surface(
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(enabled = enabled) { onSelect() },
+            modifier = Modifier.size(140.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = enabled) { onSelect() },
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
             if (bitmap != null) {
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = "封面预览",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                Image(bitmap = bitmap, contentDescription = "封面预览", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "点击选择封面",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+                    Text("点击选择封面", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
         }
 
-        // 文件名 + 分辨率
         Spacer(Modifier.height(6.dp))
         Text(
             imageFile?.name ?: "未选择",
             style = MaterialTheme.typography.bodySmall,
-            color = if (imageFile != null)
-                MaterialTheme.colorScheme.onSurface
-            else
-                MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
+            color = if (imageFile != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         if (bitmap != null) {
-            Text(
-                "${bitmap.width} × ${bitmap.height}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Text("${bitmap.width} × ${bitmap.height}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
 
-        // 封面预览（1920×1080 生成结果）
         if (coverPreview != null) {
             Spacer(Modifier.height(12.dp))
-            Text(
-                "封面预览",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Text("封面预览", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
             Spacer(Modifier.height(2.dp))
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(6.dp)),
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(6.dp)),
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
             ) {
-                Image(
-                    bitmap = coverPreview,
-                    contentDescription = "封面预览 (1920×1080)",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
+                Image(bitmap = coverPreview, contentDescription = "封面预览 (1920×1080)", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             }
         }
 
-        // 背景色选择
         Spacer(Modifier.height(8.dp))
         BgModeSelector(
             bgMode = bgMode,
             onBgModeChange = { mode ->
-                if (mode == BackgroundMode.Custom) {
-                    showColorDialog = true
-                } else {
-                    onBgModeChange(mode)
-                }
+                if (mode == BackgroundMode.Custom) showColorDialog = true
+                else onBgModeChange(mode)
             },
             enabled = enabled
         )
 
-        // 自定义模式：当前色值预览
         if (bgMode == BackgroundMode.Custom) {
             Spacer(Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "当前: #${customColorHex.removePrefix("#")}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("当前: #${customColorHex.removePrefix("#")}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
-                Surface(
-                    modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)),
-                    color = try {
-                        val hex = customColorHex.removePrefix("#")
-                        val c = hex.toInt(16)
-                        androidx.compose.ui.graphics.Color(c or (0xFF shl 24))
-                    } catch (_: Exception) {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ) {}
+                Surface(modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)), color = parseHexColor(customColorHex)) {}
             }
             Spacer(Modifier.height(4.dp))
             OutlinedButton(
-                onClick = { showColorDialog = true },
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text("选择颜色…", style = MaterialTheme.typography.labelSmall)
-            }
+                onClick = { showColorDialog = true }, enabled = enabled,
+                modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) { Text("选择颜色…", style = MaterialTheme.typography.labelSmall) }
         }
     }
 
-    // 自定义颜色弹窗
     if (showColorDialog) {
-        ColorPickerDialog(
+        PaletteColorPickerDialog(
             initialHex = customColorHex.removePrefix("#"),
             onConfirm = { hex ->
-                onBgModeChange(BackgroundMode.Custom)
                 onCustomColorChange(hex)
+                onBgModeChange(BackgroundMode.Custom)
                 showColorDialog = false
             },
             onDismiss = { showColorDialog = false }
@@ -206,94 +141,157 @@ fun ImagePickerPanel(
     }
 }
 
+// ── 调色板对话框 ──
+
 @Composable
-private fun ColorPickerDialog(
+private fun PaletteColorPickerDialog(
     initialHex: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var hex by remember { mutableStateOf(initialHex) }
-    val previewColor = try {
-        val c = hex.toInt(16)
-        androidx.compose.ui.graphics.Color(c or (0xFF shl 24))
-    } catch (_: Exception) {
-        MaterialTheme.colorScheme.surfaceVariant
+    val initColor = parseHexColor("#$initialHex")
+    var hue by remember { mutableFloatStateOf(hueFromColor(initColor)) }
+    var sat by remember { mutableFloatStateOf(satFromColor(initColor)) }
+    var value by remember { mutableFloatStateOf(valueFromColor(initColor)) }
+
+    val currentColor = Color.hsv(hue, sat, value)
+    val hex by derivedStateOf {
+        val r = (currentColor.red * 255 + 0.5f).toInt()
+        val g = (currentColor.green * 255 + 0.5f).toInt()
+        val b = (currentColor.blue * 255 + 0.5f).toInt()
+        "%02X%02X%02X".format(r, g, b)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("自定义背景色", style = MaterialTheme.typography.titleSmall) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 色块预览
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(8.dp)),
-                    color = previewColor,
-                    shape = RoundedCornerShape(8.dp)
-                ) {}
-
-                // 十六进制输入
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "#",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.width(IntrinsicSize.Max)) {
+                Surface(modifier = Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(8.dp)), color = currentColor, shape = RoundedCornerShape(8.dp)) {}
+                SVPlane(hue = hue, sat = sat, value = value, onSelect = { ns, nv -> sat = ns; value = nv }, modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)))
+                HueSlider(hue = hue, onHueChange = { hue = it }, modifier = Modifier.fillMaxWidth().height(18.dp).clip(RoundedCornerShape(9.dp)))
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("#", style = MaterialTheme.typography.bodyMedium)
                     BasicTextField(
                         value = hex,
-                        onValueChange = { hex = it.filter { c -> c in "0123456789ABCDEFabcdef" }.take(6) },
+                        onValueChange = { input ->
+                            val filtered = input.filter { it in "0123456789ABCDEFabcdef" }.take(6)
+                            if (filtered.length == 6) {
+                                val c = parseHexColor("#$filtered")
+                                hue = hueFromColor(c); sat = satFromColor(c); value = valueFromColor(c)
+                            }
+                        },
                         singleLine = true,
-                        textStyle = TextStyle(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = MaterialTheme.typography.bodyMedium.fontSize
-                        ),
+                        textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = MaterialTheme.typography.bodyMedium.fontSize),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
                     )
                 }
-
-                // 预设色块快捷选择
                 Text("预设色", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(
-                        "3A3D60" to "深蓝紫",
-                        "1F2D48" to "藏蓝",
-                        "1A1F2E" to "GitHub",
-                        "3C3C3C" to "深灰",
-                        "2A3A2E" to "墨绿",
-                        "3C2E24" to "深棕",
-                        "222222" to "经典黑"
-                    ).forEach { (h, label) ->
-                        val c = try {
-                            val v = h.toInt(16)
-                            androidx.compose.ui.graphics.Color(v or (0xFF shl 24))
-                        } catch (_: Exception) {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        }
-                        Surface(
-                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { hex = h },
-                            color = c,
-                            shape = RoundedCornerShape(6.dp)
-                        ) {}
+                    listOf("505A88","3A5070","2E3640","585858","425A46","584A3E","383838").forEach { h ->
+                        val c = parseHexColor("#$h")
+                        Surface(modifier = Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { hue = hueFromColor(c); sat = satFromColor(c); value = valueFromColor(c) }, color = c, shape = RoundedCornerShape(6.dp)) {}
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(hex) }) {
-                Text("确定")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
+        confirmButton = { TextButton(onClick = { onConfirm(hex) }) { Text("确定") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
+
+// ── SV 平面 ──
+
+@Composable
+private fun SVPlane(
+    hue: Float, sat: Float, value: Float,
+    onSelect: (sat: Float, value: Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val hueColor = Color.hsv(hue, 1f, 1f)
+
+    Canvas(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val ns = (offset.x / size.width).coerceIn(0f, 1f)
+                    val nv = 1f - (offset.y / size.height).coerceIn(0f, 1f)
+                    onSelect(ns, nv)
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures { change, _ ->
+                    val ns = (change.position.x / size.width).coerceIn(0f, 1f)
+                    val nv = 1f - (change.position.y / size.height).coerceIn(0f, 1f)
+                    onSelect(ns, nv)
+                }
+            }
+    ) {
+        // 先铺纯色底色
+        drawRect(color = hueColor)
+        // 水平白→透明
+        drawRect(brush = Brush.linearGradient(listOf(Color.White, Color.Transparent), Offset.Zero, Offset(size.width, 0f)))
+        // 垂直透明→黑
+        drawRect(brush = Brush.linearGradient(listOf(Color.Transparent, Color.Black), Offset.Zero, Offset(0f, size.height)))
+
+        // 选中指示器
+        val cx = sat * size.width
+        val cy = (1f - value) * size.height
+        drawCircle(Color.White, radius = 6f, center = Offset(cx, cy), style = Stroke(2f))
+        drawCircle(Color.Black, radius = 4f, center = Offset(cx, cy), style = Stroke(1.5f))
+    }
+}
+
+// ── Hue 滑块 ──
+
+@Composable
+private fun HueSlider(
+    hue: Float, onHueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val hueColors = remember { (0..36).map { Color.hsv(it * 10f, 1f, 1f) } }
+
+    Canvas(
+        modifier = modifier
+            .pointerInput(Unit) { detectTapGestures { offset -> onHueChange((offset.x / size.width).coerceIn(0f, 1f) * 360f) } }
+            .pointerInput(Unit) { detectDragGestures { change, _ -> onHueChange((change.position.x / size.width).coerceIn(0f, 1f) * 360f) } }
+    ) {
+        drawRect(brush = Brush.linearGradient(hueColors, Offset.Zero, Offset(size.width, 0f)))
+        val cx = hue / 360f * size.width
+        drawCircle(Color.White, radius = 8f, center = Offset(cx, size.height / 2), style = Stroke(2.5f))
+        drawCircle(Color.Black, radius = 6f, center = Offset(cx, size.height / 2), style = Stroke(1.5f))
+    }
+}
+
+// ── 工具函数 ──
+
+private fun parseHexColor(hex: String): Color = try {
+    val h = hex.removePrefix("#")
+    Color((0xFF shl 24) or h.toInt(16))
+} catch (_: Exception) { Color.Gray }
+
+private fun hueFromColor(c: Color): Float {
+    val max = maxOf(c.red, c.green, c.blue)
+    val min = minOf(c.red, c.green, c.blue)
+    val delta = max - min
+    if (delta == 0f) return 0f
+    return when (max) {
+        c.red   -> 60f * (((c.green - c.blue) / delta) % 6f)
+        c.green -> 60f * (((c.blue - c.red) / delta) + 2f)
+        else    -> 60f * (((c.red - c.green) / delta) + 4f)
+    }.let { if (it < 0) it + 360f else it }
+}
+
+private fun satFromColor(c: Color): Float {
+    val max = maxOf(c.red, c.green, c.blue)
+    val min = minOf(c.red, c.green, c.blue)
+    return if (max == 0f) 0f else (max - min) / max
+}
+
+private fun valueFromColor(c: Color): Float = maxOf(c.red, c.green, c.blue)
+
+// ── BgModeSelector ──
 
 @Composable
 private fun BgModeSelector(
@@ -302,35 +300,19 @@ private fun BgModeSelector(
     enabled: Boolean,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            "背景:",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text("背景:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(4.dp))
         Box {
             OutlinedButton(
-                onClick = { expanded = true },
-                enabled = enabled,
+                onClick = { expanded = true }, enabled = enabled,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    bgMode.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
+                Text(bgMode.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.weight(1f))
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(14.dp))
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 BackgroundMode.entries.forEach { mode ->
                     DropdownMenuItem(
                         text = { Text(mode.label, style = MaterialTheme.typography.labelSmall) },
