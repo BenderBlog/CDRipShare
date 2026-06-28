@@ -3,8 +3,10 @@ package io.github.benderblog.cdripshare.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
@@ -46,8 +48,13 @@ fun ImagePickerPanel(
         }
     }
 
+    var showColorDialog by remember { mutableStateOf(false) }
+
     Column(
-        modifier = modifier.fillMaxWidth().fillMaxHeight(),
+        modifier = modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -120,7 +127,7 @@ fun ImagePickerPanel(
             Spacer(Modifier.height(2.dp))
             Surface(
                 modifier = Modifier
-                    .width(200.dp)
+                    .fillMaxWidth()
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(6.dp)),
                 shape = RoundedCornerShape(6.dp),
@@ -139,20 +146,153 @@ fun ImagePickerPanel(
         Spacer(Modifier.height(8.dp))
         BgModeSelector(
             bgMode = bgMode,
-            onBgModeChange = onBgModeChange,
+            onBgModeChange = { mode ->
+                if (mode == BackgroundMode.Custom) {
+                    showColorDialog = true
+                } else {
+                    onBgModeChange(mode)
+                }
+            },
             enabled = enabled
         )
 
-        // 自定义颜色输入（仅「自定义」模式下显示）
+        // 自定义模式：当前色值预览
         if (bgMode == BackgroundMode.Custom) {
             Spacer(Modifier.height(4.dp))
-            CustomColorInput(
-                hex = customColorHex,
-                onHexChange = onCustomColorChange,
-                enabled = enabled
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "当前: #${customColorHex.removePrefix("#")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(6.dp))
+                Surface(
+                    modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)),
+                    color = try {
+                        val hex = customColorHex.removePrefix("#")
+                        val c = hex.toInt(16)
+                        androidx.compose.ui.graphics.Color(c or (0xFF shl 24))
+                    } catch (_: Exception) {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ) {}
+            }
+            Spacer(Modifier.height(4.dp))
+            OutlinedButton(
+                onClick = { showColorDialog = true },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text("选择颜色…", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
+
+    // 自定义颜色弹窗
+    if (showColorDialog) {
+        ColorPickerDialog(
+            initialHex = customColorHex.removePrefix("#"),
+            onConfirm = { hex ->
+                onBgModeChange(BackgroundMode.Custom)
+                onCustomColorChange(hex)
+                showColorDialog = false
+            },
+            onDismiss = { showColorDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun ColorPickerDialog(
+    initialHex: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var hex by remember { mutableStateOf(initialHex) }
+    val previewColor = try {
+        val c = hex.toInt(16)
+        androidx.compose.ui.graphics.Color(c or (0xFF shl 24))
+    } catch (_: Exception) {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("自定义背景色", style = MaterialTheme.typography.titleSmall) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 色块预览
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(8.dp)),
+                    color = previewColor,
+                    shape = RoundedCornerShape(8.dp)
+                ) {}
+
+                // 十六进制输入
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "#",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    BasicTextField(
+                        value = hex,
+                        onValueChange = { hex = it.filter { c -> c in "0123456789ABCDEFabcdef" }.take(6) },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = MaterialTheme.typography.bodyMedium.fontSize
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    )
+                }
+
+                // 预设色块快捷选择
+                Text("预设色", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(
+                        "3A3D60" to "深蓝紫",
+                        "1F2D48" to "藏蓝",
+                        "1A1F2E" to "GitHub",
+                        "3C3C3C" to "深灰",
+                        "2A3A2E" to "墨绿",
+                        "3C2E24" to "深棕",
+                        "222222" to "经典黑"
+                    ).forEach { (h, label) ->
+                        val c = try {
+                            val v = h.toInt(16)
+                            androidx.compose.ui.graphics.Color(v or (0xFF shl 24))
+                        } catch (_: Exception) {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
+                        Surface(
+                            modifier = Modifier.size(28.dp).clip(RoundedCornerShape(6.dp)).clickable { hex = h },
+                            color = c,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {}
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(hex) }) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
 }
 
 @Composable
@@ -199,38 +339,5 @@ private fun BgModeSelector(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CustomColorInput(
-    hex: String,
-    onHexChange: (String) -> Unit,
-    enabled: Boolean,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            "#",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        BasicTextField(
-            value = hex.removePrefix("#"),
-            onValueChange = { onHexChange(it) },
-            enabled = enabled,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = MaterialTheme.typography.labelSmall.fontSize
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp)
-                .height(24.dp)
-        )
     }
 }
