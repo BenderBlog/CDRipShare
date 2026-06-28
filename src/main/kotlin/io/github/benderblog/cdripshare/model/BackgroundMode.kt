@@ -1,8 +1,8 @@
 package io.github.benderblog.cdripshare.model
 
 enum class BackgroundMode(val label: String) {
-    Auto("自动计算1"),
-    AutoPalette("自动计算2"),
+    Auto("自动计算-HSL"),
+    AutoPalette("自动计算-Android"),
     DarkBluePurple("深蓝紫"),
     Navy("藏蓝"),
     DarkGray("深灰"),
