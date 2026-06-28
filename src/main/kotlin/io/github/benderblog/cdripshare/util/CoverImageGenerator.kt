@@ -76,7 +76,7 @@ object CoverImageGenerator {
     // ── 共享量化 ──
 
     private fun getSwatches(image: Image): List<ColorCutQuantizer.Swatch> {
-        val tempFile = File.createTempFile("cq", ".png")
+        val tempFile = File.createTempFile("cqT", ".png")
         return try {
             image.encodeToData(EncodedImageFormat.PNG)?.let { tempFile.writeBytes(it.bytes) }
             ColorCutQuantizer.quantize(tempFile, 16)
