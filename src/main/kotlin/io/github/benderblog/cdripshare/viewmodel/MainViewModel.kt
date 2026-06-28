@@ -190,6 +190,11 @@ class MainViewModel {
         appState.value = AppState()
     }
 
+
+    fun onBgModeChanged() {
+        imageFile.value?.let { generateCoverPreview(it) }
+    }
+
     fun resetToIdle() {
         appState.value = AppState()
     }

@@ -132,8 +132,6 @@ fun ImagePickerPanel(
 
         // 背景色选择
         Spacer(Modifier.height(8.dp))
-        Spacer(Modifier.weight(1f))
-        Spacer(Modifier.height(4.dp))
         BgModeSelector(
             bgMode = bgMode,
             onBgModeChange = onBgModeChange,

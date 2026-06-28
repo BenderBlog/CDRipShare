@@ -62,7 +62,7 @@ fun App(viewModel: MainViewModel) {
                             onSelect = { pickImageFile(viewModel) },
                             enabled = !isWorking,
                             bgMode = viewModel.bgMode.value,
-                            onBgModeChange = remember { { viewModel.bgMode.value = it } },
+                            onBgModeChange = remember { { viewModel.bgMode.value = it; viewModel.onBgModeChanged() } },
                             modifier = Modifier.weight(0.3f).fillMaxHeight()
                         )
                     }
