@@ -29,7 +29,7 @@ class VideoMuxer(private val runner: FFmpegRunner) {
         val audioConcat = "${audioInputs}concat=n=$n:v=0:a=1[aconcat]"
 
         // Video scale+pad filter
-        val videoFilter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2"
+        val videoFilter = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p"
 
         // Audio output filter
         val audioFilterSuffix = when (audioOutputMode) {
@@ -57,6 +57,8 @@ class VideoMuxer(private val runner: FFmpegRunner) {
                 "-preset", "fast",
                 "-crf", "35",
                 "-x265-params", "profile=mainstillpicture",
+                "-pix_fmt", "yuv420p",
+                "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
             )
             VideoCodec.H264 -> listOf(
                 "-c:v", "libx264",
@@ -64,6 +66,8 @@ class VideoMuxer(private val runner: FFmpegRunner) {
                 "-crf", "23",
                 "-tune", "stillimage",
                 "-profile:v", "high",
+                "-pix_fmt", "yuv420p",
+                "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
             )
         }
 
