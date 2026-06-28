@@ -63,6 +63,8 @@ fun App(viewModel: MainViewModel) {
                             enabled = !isWorking,
                             bgMode = viewModel.bgMode.value,
                             onBgModeChange = remember { { viewModel.bgMode.value = it; viewModel.onBgModeChanged() } },
+                            customColorHex = viewModel.customColorHex,
+                            onCustomColorChange = remember { { viewModel.customColorHex = it; viewModel.onBgModeChanged() } },
                             modifier = Modifier.weight(0.3f).fillMaxHeight()
                         )
                     }

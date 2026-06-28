@@ -79,14 +79,15 @@ object CoverImageGenerator {
     private fun adjustBackgroundColor(argb: Int): Int {
         val hsl = rgbToHsl(argb)
         val sat = (hsl[1] * 0.3f).coerceIn(0f, 1f)
-        val light = (hsl[2] * 0.5f).coerceIn(0.10f, 0.25f)
+        val light = (hsl[2] * 0.5f).coerceIn(0.14f, 0.30f)
         return hslToRgb(hsl[0], sat, light)
     }
 
-    fun generate(sourceImageFile: File, outputFile: File, bgMode: BackgroundMode = BackgroundMode.Auto): File {
+    fun generate(sourceImageFile: File, outputFile: File, bgMode: BackgroundMode = BackgroundMode.Auto, customColor: Int = 0xFF3C3C3CL.toInt()): File {
         val image = Image.makeFromEncoded(sourceImageFile.readBytes())
         val bgColor = when (bgMode) {
             BackgroundMode.Auto -> adjustBackgroundColor(extractDominantColor(image))
+            BackgroundMode.Custom -> customColor or (0xFF shl 24)
             else -> bgMode.colorHex or (0xFF shl 24)
         }
 

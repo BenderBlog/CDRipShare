@@ -4,6 +4,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import io.github.benderblog.cdripshare.ffmpeg.*
 import io.github.benderblog.cdripshare.cue.CueParser
 import io.github.benderblog.cdripshare.cue.ChapterGenerator
@@ -30,6 +32,7 @@ class MainViewModel {
     val audioOutputMode = mutableStateOf(AudioOutputMode.Passthrough)
     val videoCodec = mutableStateOf(VideoCodec.H265)
     val bgMode = mutableStateOf(BackgroundMode.Auto)
+    var customColorHex by mutableStateOf("#3C3C3C")
     val logs = mutableStateListOf<String>()
 
     private var workJob: Job? = null
@@ -139,7 +142,7 @@ class MainViewModel {
 
                 // 生成封面图
                 val coverFile = File(outputFile.parentFile, "cover.png")
-                CoverImageGenerator.generate(imageFile.value!!, coverFile, bgMode.value)
+                CoverImageGenerator.generate(imageFile.value!!, coverFile, bgMode.value, parseCustomColor())
                 log("封面图已生成: ${coverFile.absolutePath}")
 
                 videoMuxer.mux(
@@ -195,6 +198,15 @@ class MainViewModel {
         imageFile.value?.let { generateCoverPreview(it) }
     }
 
+
+    private fun parseCustomColor(): Int {
+        val hex = customColorHex.removePrefix("#")
+        return try {
+            (0xFF shl 24) or (hex.toInt(16) and 0xFFFFFF)
+        } catch (_: NumberFormatException) {
+            0xFF3C3C3CL.toInt()
+        }
+    }
     fun resetToIdle() {
         appState.value = AppState()
     }
@@ -203,7 +215,7 @@ class MainViewModel {
         scope.launch(Dispatchers.IO) {
             try {
                 val tempCover = File.createTempFile("cover-preview-", ".png")
-                CoverImageGenerator.generate(file, tempCover, bgMode.value)
+                CoverImageGenerator.generate(file, tempCover, bgMode.value, parseCustomColor())
                 val bitmap = org.jetbrains.skia.Image.makeFromEncoded(tempCover.readBytes()).toComposeImageBitmap()
                 withContext(Dispatchers.Main) {
                     coverPreview.value = bitmap

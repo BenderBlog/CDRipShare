@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
@@ -12,8 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,8 @@ fun ImagePickerPanel(
     enabled: Boolean,
     bgMode: BackgroundMode,
     onBgModeChange: (BackgroundMode) -> Unit,
+    customColorHex: String,
+    onCustomColorChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(imageFile?.absolutePath) {
@@ -137,6 +142,16 @@ fun ImagePickerPanel(
             onBgModeChange = onBgModeChange,
             enabled = enabled
         )
+
+        // 自定义颜色输入（仅「自定义」模式下显示）
+        if (bgMode == BackgroundMode.Custom) {
+            Spacer(Modifier.height(4.dp))
+            CustomColorInput(
+                hex = customColorHex,
+                onHexChange = onCustomColorChange,
+                enabled = enabled
+            )
+        }
     }
 }
 
@@ -184,5 +199,38 @@ private fun BgModeSelector(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CustomColorInput(
+    hex: String,
+    onHexChange: (String) -> Unit,
+    enabled: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            "#",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        BasicTextField(
+            value = hex.removePrefix("#"),
+            onValueChange = { onHexChange(it) },
+            enabled = enabled,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = MaterialTheme.typography.labelSmall.fontSize
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
+                .height(24.dp)
+        )
     }
 }
