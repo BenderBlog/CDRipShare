@@ -2,6 +2,9 @@ package io.github.benderblog.cdripshare.util
 
 import org.jetbrains.skia.*
 import java.io.File
+import io.github.benderblog.cdripshare.model.BackgroundMode
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * 将一张图片生成 1920×1080 封面图：
@@ -22,9 +25,70 @@ object CoverImageGenerator {
 
     private val samplingMode = FilterMipmap(FilterMode.LINEAR, MipmapMode.NONE)
 
-    fun generate(sourceImageFile: File, outputFile: File): File {
+    /**
+     * ARGB → HSL 分量数组 [hue=0..360, saturation=0..1, lightness=0..1]
+     */
+    private fun rgbToHsl(argb: Int): FloatArray {
+        val r = ((argb shr 16) and 0xFF) / 255f
+        val g = ((argb shr 8) and 0xFF) / 255f
+        val b = (argb and 0xFF) / 255f
+
+        val maxC = max(max(r, g), b)
+        val minC = min(min(r, g), b)
+        val delta = maxC - minC
+
+        val l = (maxC + minC) / 2f
+        val s = if (delta == 0f) 0f else delta / (1f - kotlin.math.abs(2f * l - 1f))
+        val h = when {
+            delta == 0f -> 0f
+            maxC == r   -> 60f * (((g - b) / delta) % 6f)
+            maxC == g   -> 60f * (((b - r) / delta) + 2f)
+            else        -> 60f * (((r - g) / delta) + 4f)
+        }
+
+        return floatArrayOf(if (h < 0) h + 360f else h, s.coerceIn(0f, 1f), l.coerceIn(0f, 1f))
+    }
+
+    /**
+     * HSL → ARGB (alpha 固定 0xFF)
+     */
+    private fun hslToRgb(h: Float, s: Float, l: Float): Int {
+        val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
+        val x = c * (1f - kotlin.math.abs((h / 60f) % 2f - 1f))
+        val m = l - c / 2f
+
+        val (r1, g1, b1) = when {
+            h < 60   -> Triple(c, x, 0f)
+            h < 120  -> Triple(x, c, 0f)
+            h < 180  -> Triple(0f, c, x)
+            h < 240  -> Triple(0f, x, c)
+            h < 300  -> Triple(x, 0f, c)
+            else     -> Triple(c, 0f, x)
+        }
+
+        val r = ((r1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
+        val g = ((g1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
+        val b = ((b1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
+
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+    }
+
+    /**
+     * 对提取的主色做后处理：保留色相，饱和度降到 30%，亮度压到 15%~25% 之间
+     */
+    private fun adjustBackgroundColor(argb: Int): Int {
+        val hsl = rgbToHsl(argb)
+        val sat = (hsl[1] * 0.3f).coerceIn(0f, 1f)
+        val light = (hsl[2] * 0.5f).coerceIn(0.10f, 0.25f)
+        return hslToRgb(hsl[0], sat, light)
+    }
+
+    fun generate(sourceImageFile: File, outputFile: File, bgMode: BackgroundMode = BackgroundMode.Auto): File {
         val image = Image.makeFromEncoded(sourceImageFile.readBytes())
-        val bgColor = extractDominantColor(image)
+        val bgColor = when (bgMode) {
+            BackgroundMode.Auto -> adjustBackgroundColor(extractDominantColor(image))
+            else -> bgMode.colorHex or (0xFF shl 24)
+        }
 
         val scale = IMAGE_TARGET_H / image.height
         val drawW = image.width * scale
