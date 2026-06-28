@@ -10,6 +10,7 @@ import io.github.benderblog.cdripshare.cue.ChapterGenerator
 import io.github.benderblog.cdripshare.model.AppState
 import io.github.benderblog.cdripshare.model.AudioItem
 import io.github.benderblog.cdripshare.model.AudioOutputMode
+import io.github.benderblog.cdripshare.model.BackgroundMode
 import io.github.benderblog.cdripshare.model.Phase
 import io.github.benderblog.cdripshare.model.VideoCodec
 import io.github.benderblog.cdripshare.util.TempFileManager
@@ -28,6 +29,7 @@ class MainViewModel {
     val cueFile = mutableStateOf<File?>(null)
     val audioOutputMode = mutableStateOf(AudioOutputMode.Passthrough)
     val videoCodec = mutableStateOf(VideoCodec.H265)
+    val bgMode = mutableStateOf(BackgroundMode.Auto)
     val logs = mutableStateListOf<String>()
 
     private var workJob: Job? = null
@@ -137,7 +139,7 @@ class MainViewModel {
 
                 // 生成封面图
                 val coverFile = File(outputFile.parentFile, "cover.png")
-                CoverImageGenerator.generate(imageFile.value!!, coverFile)
+                CoverImageGenerator.generate(imageFile.value!!, coverFile, bgMode.value)
                 log("封面图已生成: ${coverFile.absolutePath}")
 
                 videoMuxer.mux(
@@ -196,7 +198,7 @@ class MainViewModel {
         scope.launch(Dispatchers.IO) {
             try {
                 val tempCover = File.createTempFile("cover-preview-", ".png")
-                CoverImageGenerator.generate(file, tempCover)
+                CoverImageGenerator.generate(file, tempCover, bgMode.value)
                 val bitmap = org.jetbrains.skia.Image.makeFromEncoded(tempCover.readBytes()).toComposeImageBitmap()
                 withContext(Dispatchers.Main) {
                     coverPreview.value = bitmap
