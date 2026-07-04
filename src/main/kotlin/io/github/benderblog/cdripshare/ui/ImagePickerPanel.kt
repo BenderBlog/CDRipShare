@@ -111,6 +111,129 @@ fun ImagePickerPanel(
     }
 }
 
+@Composable
+fun CoverEditorContent(
+    imageFile: File?,
+    coverPreview: ImageBitmap?,
+    onSelect: () -> Unit,
+    enabled: Boolean,
+    bgMode: BackgroundMode,
+    onBgModeChange: (BackgroundMode) -> Unit,
+    customColorHex: String,
+    onCustomColorChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap = remember(imageFile?.absolutePath) {
+        imageFile?.takeIf { it.exists() }?.let {
+            try {
+                org.jetbrains.skia.Image.makeFromEncoded(it.readBytes()).toComposeImageBitmap()
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    var showColorDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("封面预览", style = MaterialTheme.typography.titleMedium)
+            Surface(
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp)),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                if (coverPreview != null) {
+                    Image(bitmap = coverPreview, contentDescription = "封面预览 (1920×1080)", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("选择封面后显示 1920×1080 预览", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+
+            Text("原始图片", style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    modifier = Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    if (bitmap != null) {
+                        Image(bitmap = bitmap, contentDescription = "原始封面", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("未选择", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(imageFile?.name ?: "未选择封面图片", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (bitmap != null) {
+                        Text("${bitmap.width} × ${bitmap.height}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier.width(220.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("设置", style = MaterialTheme.typography.titleMedium)
+            Button(onClick = onSelect, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+                Text(if (imageFile == null) "选择封面" else "更换封面")
+            }
+
+            BgModeSelector(
+                bgMode = bgMode,
+                onBgModeChange = { mode ->
+                    if (mode == BackgroundMode.Custom) showColorDialog = true
+                    else onBgModeChange(mode)
+                },
+                enabled = enabled
+            )
+
+            if (bgMode == BackgroundMode.Custom) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("当前: #${customColorHex.removePrefix("#")}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
+                    Surface(modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp)), color = parseHexColor(customColorHex)) {}
+                }
+                OutlinedButton(
+                    onClick = { showColorDialog = true },
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("选择颜色")
+                }
+            }
+
+            if (!enabled) {
+                Text("合成中只能查看封面预览", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    if (showColorDialog) {
+        PaletteColorPickerDialog(
+            initialHex = customColorHex.removePrefix("#"),
+            onConfirm = { hex ->
+                onCustomColorChange(hex)
+                onBgModeChange(BackgroundMode.Custom)
+                showColorDialog = false
+            },
+            onDismiss = { showColorDialog = false }
+        )
+    }
+}
+
 // ── 调色板对话框 ──
 
 @Composable
