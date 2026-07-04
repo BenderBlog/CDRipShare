@@ -396,23 +396,30 @@ private fun BgModeSelector(
     enabled: Boolean,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(enabled) {
+        if (!enabled) expanded = false
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Text("背景:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(4.dp))
         Box {
             OutlinedButton(
-                onClick = { expanded = true }, enabled = enabled,
+                onClick = { if (enabled) expanded = true }, enabled = enabled,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(bgMode.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.weight(1f))
                 Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(14.dp))
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
                 BackgroundMode.entries.forEach { mode ->
                     DropdownMenuItem(
                         text = { Text(mode.label, style = MaterialTheme.typography.labelSmall) },
-                        onClick = { onBgModeChange(mode); expanded = false }
+                        onClick = {
+                            if (enabled) onBgModeChange(mode)
+                            expanded = false
+                        }
                     )
                 }
             }
