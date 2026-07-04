@@ -38,12 +38,8 @@ import io.github.benderblog.cdripshare.model.BackgroundMode
 fun ImagePickerPanel(
     imageFile: File?,
     coverPreview: ImageBitmap?,
-    onSelect: () -> Unit,
+    onEdit: () -> Unit,
     enabled: Boolean,
-    bgMode: BackgroundMode,
-    onBgModeChange: (BackgroundMode) -> Unit,
-    customColorHex: String,
-    onCustomColorChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(imageFile?.absolutePath) {
@@ -56,8 +52,6 @@ fun ImagePickerPanel(
         }
     }
 
-    var showColorDialog by remember { mutableStateOf(false) }
-
     Column(
         modifier = modifier.fillMaxWidth().fillMaxHeight().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -65,15 +59,18 @@ fun ImagePickerPanel(
         Text("封面图片", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 8.dp))
 
         Surface(
-            modifier = Modifier.size(140.dp).clip(RoundedCornerShape(8.dp)).clickable(enabled = enabled) { onSelect() },
+            modifier = Modifier
+                .size(140.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { onEdit() },
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
             if (bitmap != null) {
-                Image(bitmap = bitmap, contentDescription = "封面预览", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                Image(bitmap = bitmap, contentDescription = "原始封面", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("点击选择封面", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Text("点击编辑封面", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
         }
@@ -103,41 +100,14 @@ fun ImagePickerPanel(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-        BgModeSelector(
-            bgMode = bgMode,
-            onBgModeChange = { mode ->
-                if (mode == BackgroundMode.Custom) showColorDialog = true
-                else onBgModeChange(mode)
-            },
-            enabled = enabled
-        )
-
-        if (bgMode == BackgroundMode.Custom) {
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("当前: #${customColorHex.removePrefix("#")}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(6.dp))
-                Surface(modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)), color = parseHexColor(customColorHex)) {}
-            }
-            Spacer(Modifier.height(4.dp))
-            OutlinedButton(
-                onClick = { showColorDialog = true }, enabled = enabled,
-                modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-            ) { Text("选择颜色…", style = MaterialTheme.typography.labelSmall) }
+        Spacer(Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = onEdit,
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(if (enabled) "编辑封面" else "查看封面", style = MaterialTheme.typography.labelMedium)
         }
-    }
-
-    if (showColorDialog) {
-        PaletteColorPickerDialog(
-            initialHex = customColorHex.removePrefix("#"),
-            onConfirm = { hex ->
-                onCustomColorChange(hex)
-                onBgModeChange(BackgroundMode.Custom)
-                showColorDialog = false
-            },
-            onDismiss = { showColorDialog = false }
-        )
     }
 }
 

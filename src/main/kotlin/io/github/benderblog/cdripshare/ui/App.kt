@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.benderblog.cdripshare.model.AudioOutputMode
-import io.github.benderblog.cdripshare.model.BackgroundMode
 import io.github.benderblog.cdripshare.model.Phase
 import io.github.benderblog.cdripshare.model.VideoCodec
 import io.github.benderblog.cdripshare.viewmodel.MainViewModel
@@ -22,7 +21,10 @@ import java.io.File
 import java.io.FilenameFilter
 
 @Composable
-fun App(viewModel: MainViewModel) {
+fun App(
+    viewModel: MainViewModel,
+    onOpenCoverEditor: () -> Unit = {},
+) {
     val state = viewModel.appState.value
     val isWorking = state.phase == Phase.Working
 
@@ -59,12 +61,8 @@ fun App(viewModel: MainViewModel) {
                         ImagePickerPanel(
                             imageFile = viewModel.imageFile.value,
                             coverPreview = viewModel.coverPreview.value,
-                            onSelect = { pickImageFile(viewModel) },
+                            onEdit = onOpenCoverEditor,
                             enabled = !isWorking,
-                            bgMode = viewModel.bgMode.value,
-                            onBgModeChange = remember { { viewModel.bgMode.value = it; viewModel.onBgModeChanged() } },
-                            customColorHex = viewModel.customColorHex,
-                            onCustomColorChange = remember { { viewModel.customColorHex = it; viewModel.onBgModeChanged() } },
                             modifier = Modifier.weight(0.3f).fillMaxHeight()
                         )
                     }
