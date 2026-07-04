@@ -182,7 +182,7 @@ fun CoverEditorContent(
     bgMode: BackgroundMode,
     onBgModeChange: (BackgroundMode) -> Unit,
     customColorHex: String,
-    onCustomColorChange: (String) -> Unit,
+    onCustomColorConfirm: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(imageFile?.absolutePath) {
@@ -196,6 +196,10 @@ fun CoverEditorContent(
     }
 
     var showColorDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(enabled) {
+        if (!enabled) showColorDialog = false
+    }
 
     Row(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -283,12 +287,11 @@ fun CoverEditorContent(
         }
     }
 
-    if (showColorDialog) {
+    if (showColorDialog && enabled) {
         PaletteColorPickerDialog(
             initialHex = customColorHex.removePrefix("#"),
             onConfirm = { hex ->
-                onCustomColorChange(hex)
-                onBgModeChange(BackgroundMode.Custom)
+                onCustomColorConfirm(hex)
                 showColorDialog = false
             },
             onDismiss = { showColorDialog = false }
@@ -362,9 +365,10 @@ fun CoverEditorWindow(
                     }
                 },
                 customColorHex = viewModel.customColorHex,
-                onCustomColorChange = remember {
+                onCustomColorConfirm = remember {
                     { hex: String ->
                         viewModel.customColorHex = hex
+                        viewModel.bgMode.value = BackgroundMode.Custom
                         viewModel.onBgModeChanged()
                     }
                 }
@@ -545,4 +549,4 @@ Expected: no uncommitted files, unless manual app execution generated local igno
 
 - Spec coverage: Task 1 implements the lighter main cover area; Task 2 implements live editor controls without draft state; Task 3 binds editor controls to `MainViewModel`; Task 4 implements the independent single editor window; Task 5 covers compile, build, and manual verification.
 - Placeholder scan: no incomplete placeholder steps or generic "handle later" instructions remain.
-- Type consistency: `ImagePickerPanel`, `CoverEditorContent`, `CoverEditorWindow`, `pickCoverImage`, and `showCoverEditor` names are consistent across tasks.
+- Type consistency: `ImagePickerPanel`, `CoverEditorContent`, `CoverEditorWindow`, `pickCoverImage`, `onCustomColorConfirm`, and `showCoverEditor` names are consistent across tasks.
