@@ -248,7 +248,7 @@ private fun pickAudioFiles(viewModel: MainViewModel) {
     nativeMultiFileDialog("选择音频文件", audioFilter).forEach { viewModel.addAudioFile(it) }
 }
 
-private fun pickImageFile(viewModel: MainViewModel) {
+fun pickCoverImage(viewModel: MainViewModel) {
     nativeFileDialog("选择封面图片", FileDialog.LOAD, filter = imageFilter)?.let { viewModel.setImageFile(it) }
 }
 
