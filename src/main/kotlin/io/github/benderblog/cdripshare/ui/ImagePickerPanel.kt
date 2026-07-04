@@ -120,7 +120,7 @@ fun CoverEditorContent(
     bgMode: BackgroundMode,
     onBgModeChange: (BackgroundMode) -> Unit,
     customColorHex: String,
-    onCustomColorChange: (String) -> Unit,
+    onCustomColorConfirm: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(imageFile?.absolutePath) {
@@ -134,6 +134,10 @@ fun CoverEditorContent(
     }
 
     var showColorDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(enabled) {
+        if (!enabled) showColorDialog = false
+    }
 
     Row(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -221,12 +225,11 @@ fun CoverEditorContent(
         }
     }
 
-    if (showColorDialog) {
+    if (showColorDialog && enabled) {
         PaletteColorPickerDialog(
             initialHex = customColorHex.removePrefix("#"),
             onConfirm = { hex ->
-                onCustomColorChange(hex)
-                onBgModeChange(BackgroundMode.Custom)
+                onCustomColorConfirm(hex)
                 showColorDialog = false
             },
             onDismiss = { showColorDialog = false }
