@@ -172,6 +172,26 @@ git commit -m "refactor: slim cover overview panel"
 
 Add this public composable above `PaletteColorPickerDialog(...)` so it can reuse the existing private `BgModeSelector`, `PaletteColorPickerDialog`, and `parseHexColor` helpers:
 
+Also update the private `BgModeSelector` helper so disabled state is enforced even if the menu was opened before `enabled` became false:
+
+```kotlin
+LaunchedEffect(enabled) {
+    if (!enabled) expanded = false
+}
+
+DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+    BackgroundMode.entries.forEach { mode ->
+        DropdownMenuItem(
+            text = { Text(mode.label, style = MaterialTheme.typography.labelSmall) },
+            onClick = {
+                if (enabled) onBgModeChange(mode)
+                expanded = false
+            }
+        )
+    }
+}
+```
+
 ```kotlin
 @Composable
 fun CoverEditorContent(
@@ -358,14 +378,14 @@ fun CoverEditorWindow(
                 onSelect = onSelectImage,
                 enabled = !isWorking,
                 bgMode = viewModel.bgMode.value,
-                onBgModeChange = remember {
+                onBgModeChange = remember(viewModel) {
                     { mode: BackgroundMode ->
                         viewModel.bgMode.value = mode
                         viewModel.onBgModeChanged()
                     }
                 },
                 customColorHex = viewModel.customColorHex,
-                onCustomColorConfirm = remember {
+                onCustomColorConfirm = remember(viewModel) {
                     { hex: String ->
                         viewModel.customColorHex = hex
                         viewModel.bgMode.value = BackgroundMode.Custom
