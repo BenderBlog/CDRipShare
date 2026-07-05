@@ -5,7 +5,7 @@ import kotlin.math.min
 import org.jetbrains.skia.*
 
 /**
- * 颜色量化器 — Android Palette 风格的 MMCQ 引擎。
+ * 颜色量化器 — MMCQ 引擎，用于从封面图中提取候选种子色。
  *
  * 流程：
  * 1. 缩小图片 ~112×112
@@ -27,12 +27,21 @@ object ColorCutQuantizer {
 
     fun quantize(sourceImageFile: java.io.File, maxColors: Int = 16): List<Swatch> {
         val image = Image.makeFromEncoded(sourceImageFile.readBytes())
+        return quantize(image, maxColors)
+    }
+
+    fun quantize(image: Image, maxColors: Int = 16): List<Swatch> {
         val scaled = scaleDown(image, 112)
         val pixels = readPixels(scaled)
         val colorPopulations = quantizeFromPixels(pixels)
         return if (colorPopulations.size <= maxColors) {
             colorPopulations.keys.map { c ->
-                Swatch(quantizedRed(c), quantizedGreen(c), quantizedBlue(c), colorPopulations[c]!!)
+                Swatch(
+                    expandQuantizedComponent(quantizedRed(c)),
+                    expandQuantizedComponent(quantizedGreen(c)),
+                    expandQuantizedComponent(quantizedBlue(c)),
+                    colorPopulations[c]!!
+                )
             }
         } else {
             medianCut(colorPopulations, maxColors)
@@ -129,9 +138,9 @@ object ColorCutQuantizer {
                 totalPop += pop
             }
             Swatch(
-                red = (sumR / totalPop).toInt(),
-                green = (sumG / totalPop).toInt(),
-                blue = (sumB / totalPop).toInt(),
+                red = expandQuantizedComponent((sumR / totalPop).toInt()),
+                green = expandQuantizedComponent((sumG / totalPop).toInt()),
+                blue = expandQuantizedComponent((sumB / totalPop).toInt()),
                 population = totalPop
             )
         }.sortedByDescending { it.population }
@@ -199,6 +208,9 @@ object ColorCutQuantizer {
     }
 
     // ── 工具 ──
+
+    private fun expandQuantizedComponent(value: Int): Int =
+        (value shl (8 - QUANTIZE_WORD_WIDTH)) or (value shr (QUANTIZE_WORD_WIDTH - (8 - QUANTIZE_WORD_WIDTH)))
 
     private fun quantizedRed(color: Int) = (color shr (QUANTIZE_WORD_WIDTH * 2)) and QUANTIZE_WORD_MASK
     private fun quantizedGreen(color: Int) = (color shr QUANTIZE_WORD_WIDTH) and QUANTIZE_WORD_MASK

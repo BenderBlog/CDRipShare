@@ -60,7 +60,8 @@ fun App(
                         VerticalDivider(modifier = Modifier.fillMaxHeight().padding(vertical = 4.dp))
                         ImagePickerPanel(
                             imageFile = viewModel.imageFile.value,
-                            coverPreview = viewModel.coverPreview.value,
+                            backgroundColorArgb = viewModel.coverBackgroundColor,
+                            coverRenderSettings = viewModel.coverRenderSettings,
                             onEdit = onOpenCoverEditor,
                             enabled = !isWorking,
                             modifier = Modifier.weight(0.3f).fillMaxHeight()

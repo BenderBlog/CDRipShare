@@ -2,6 +2,7 @@ package io.github.benderblog.cdripshare.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,7 +17,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -33,11 +37,16 @@ import androidx.compose.ui.unit.dp
 import java.io.File
 
 import io.github.benderblog.cdripshare.model.BackgroundMode
+import io.github.benderblog.cdripshare.model.CoverRenderSettings
+import io.github.benderblog.cdripshare.util.ColorHex
+import io.github.benderblog.cdripshare.util.CoverImageGenerator
+import kotlin.math.roundToInt
 
 @Composable
 fun ImagePickerPanel(
     imageFile: File?,
-    coverPreview: ImageBitmap?,
+    backgroundColorArgb: Int,
+    coverRenderSettings: CoverRenderSettings,
     onEdit: () -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
@@ -87,7 +96,7 @@ fun ImagePickerPanel(
             Text("${bitmap.width} × ${bitmap.height}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
 
-        if (coverPreview != null) {
+        if (bitmap != null) {
             Spacer(Modifier.height(12.dp))
             Text("封面预览", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
             Spacer(Modifier.height(2.dp))
@@ -96,7 +105,12 @@ fun ImagePickerPanel(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
             ) {
-                Image(bitmap = coverPreview, contentDescription = "封面预览 (1920×1080)", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                LiveCoverPreview(
+                    bitmap = bitmap,
+                    backgroundColorArgb = backgroundColorArgb,
+                    settings = coverRenderSettings,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
 
@@ -114,13 +128,16 @@ fun ImagePickerPanel(
 @Composable
 fun CoverEditorContent(
     imageFile: File?,
-    coverPreview: ImageBitmap?,
+    backgroundColorArgb: Int,
     onSelect: () -> Unit,
     enabled: Boolean,
     bgMode: BackgroundMode,
     onBgModeChange: (BackgroundMode) -> Unit,
     customColorHex: String,
     onCustomColorConfirm: (String) -> Unit,
+    coverRenderSettings: CoverRenderSettings,
+    onCoverRenderSettingsChanging: (CoverRenderSettings) -> Unit,
+    onCoverRenderSettingsChange: (CoverRenderSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val bitmap = remember(imageFile?.absolutePath) {
@@ -134,6 +151,7 @@ fun CoverEditorContent(
     }
 
     var showColorDialog by remember { mutableStateOf(false) }
+    var showAdvancedShadow by remember { mutableStateOf(false) }
 
     LaunchedEffect(enabled) {
         if (!enabled) showColorDialog = false
@@ -153,41 +171,24 @@ fun CoverEditorContent(
                 shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
             ) {
-                if (coverPreview != null) {
-                    Image(bitmap = coverPreview, contentDescription = "封面预览 (1920×1080)", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                if (bitmap != null) {
+                    LiveCoverPreview(
+                        bitmap = bitmap,
+                        backgroundColorArgb = backgroundColorArgb,
+                        settings = coverRenderSettings,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text("选择封面后显示 1920×1080 预览", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        Text("选择封面后显示实时预览", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                     }
                 }
             }
 
-            Text("原始图片", style = MaterialTheme.typography.titleSmall)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Surface(
-                    modifier = Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                ) {
-                    if (bitmap != null) {
-                        Image(bitmap = bitmap, contentDescription = "原始封面", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    } else {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("未选择", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(imageFile?.name ?: "未选择封面图片", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (bitmap != null) {
-                        Text("${bitmap.width} × ${bitmap.height}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
         }
 
         Column(
-            modifier = Modifier.width(220.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
+            modifier = Modifier.width(260.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("设置", style = MaterialTheme.typography.titleMedium)
@@ -219,8 +220,128 @@ fun CoverEditorContent(
                 }
             }
 
+            HorizontalDivider()
+            Text("构图", style = MaterialTheme.typography.titleSmall)
+            CoverSettingSlider(
+                label = "图片高度",
+                value = coverRenderSettings.imageHeight,
+                valueRange = CoverRenderSettings.MIN_IMAGE_HEIGHT..CoverRenderSettings.MAX_IMAGE_HEIGHT,
+                suffix = "px",
+                enabled = enabled,
+                onValueChanging = { value ->
+                    onCoverRenderSettingsChanging(coverRenderSettings.withImageHeight(value))
+                },
+                onValueCommitted = { value ->
+                    onCoverRenderSettingsChange(coverRenderSettings.withImageHeight(value))
+                }
+            )
+            CoverSettingSlider(
+                label = "圆角",
+                value = coverRenderSettings.cornerRadius,
+                valueRange = CoverRenderSettings.MIN_CORNER_RADIUS..CoverRenderSettings.MAX_CORNER_RADIUS,
+                suffix = "px",
+                enabled = enabled,
+                onValueChanging = { value ->
+                    onCoverRenderSettingsChanging(coverRenderSettings.withCornerRadius(value))
+                },
+                onValueCommitted = { value ->
+                    onCoverRenderSettingsChange(coverRenderSettings.withCornerRadius(value))
+                }
+            )
+
+            HorizontalDivider()
+            Text("阴影", style = MaterialTheme.typography.titleSmall)
+            CoverSettingSlider(
+                label = "强度",
+                value = coverRenderSettings.shadowStrength * 100f,
+                valueRange = 0f..100f,
+                suffix = "%",
+                enabled = enabled,
+                onValueChanging = { value ->
+                    onCoverRenderSettingsChanging(coverRenderSettings.withShadowStrength(value / 100f))
+                },
+                onValueCommitted = { value ->
+                    onCoverRenderSettingsChange(coverRenderSettings.withShadowStrength(value / 100f))
+                }
+            )
+            if (coverRenderSettings.usesAdvancedShadow) {
+                Text("高级阴影已自定义", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(
+                onClick = { showAdvancedShadow = !showAdvancedShadow },
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(if (showAdvancedShadow) "收起高级阴影" else "高级阴影", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
+            }
+            if (showAdvancedShadow) {
+                CoverSettingSlider(
+                    label = "模糊",
+                    value = coverRenderSettings.shadowBlur,
+                    valueRange = CoverRenderSettings.MIN_SHADOW_BLUR..CoverRenderSettings.MAX_SHADOW_BLUR,
+                    suffix = "px",
+                    enabled = enabled,
+                    onValueChanging = { value ->
+                        onCoverRenderSettingsChanging(coverRenderSettings.withShadowBlur(value))
+                    },
+                    onValueCommitted = { value ->
+                        onCoverRenderSettingsChange(coverRenderSettings.withShadowBlur(value))
+                    }
+                )
+                CoverSettingSlider(
+                    label = "下移",
+                    value = coverRenderSettings.shadowOffsetY,
+                    valueRange = CoverRenderSettings.MIN_SHADOW_OFFSET_Y..CoverRenderSettings.MAX_SHADOW_OFFSET_Y,
+                    suffix = "px",
+                    enabled = enabled,
+                    onValueChanging = { value ->
+                        onCoverRenderSettingsChanging(coverRenderSettings.withShadowOffsetY(value))
+                    },
+                    onValueCommitted = { value ->
+                        onCoverRenderSettingsChange(coverRenderSettings.withShadowOffsetY(value))
+                    }
+                )
+                CoverSettingSlider(
+                    label = "透明度",
+                    value = coverRenderSettings.shadowAlpha * 100f,
+                    valueRange = 0f..100f,
+                    suffix = "%",
+                    enabled = enabled,
+                    onValueChanging = { value ->
+                        onCoverRenderSettingsChanging(coverRenderSettings.withShadowAlpha(value / 100f))
+                    },
+                    onValueCommitted = { value ->
+                        onCoverRenderSettingsChange(coverRenderSettings.withShadowAlpha(value / 100f))
+                    }
+                )
+            }
+
             if (!enabled) {
                 Text("合成中只能查看封面预览", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Text("原始图片", style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    modifier = Modifier.size(96.dp).clip(RoundedCornerShape(8.dp)),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    if (bitmap != null) {
+                        Image(bitmap = bitmap, contentDescription = "原始封面", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("未选择", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(imageFile?.name ?: "未选择封面图片", style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (bitmap != null) {
+                        Text("${bitmap.width} × ${bitmap.height}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }
@@ -237,6 +358,91 @@ fun CoverEditorContent(
     }
 }
 
+@Composable
+private fun LiveCoverPreview(
+    bitmap: ImageBitmap,
+    backgroundColorArgb: Int,
+    settings: CoverRenderSettings,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .clipToBounds()
+            .background(Color(backgroundColorArgb)),
+    ) {
+        val layout = CoverImageGenerator.calculateLayout(bitmap.width, bitmap.height, settings)
+        val previewScale = maxHeight / CoverImageGenerator.CANVAS_H.toFloat()
+        val imageHeight = previewScale * layout.drawH
+        val imageWidth = previewScale * layout.drawW
+        val cornerRadius = previewScale * settings.cornerRadius
+        val shadowOffsetY = previewScale * settings.shadowOffsetY
+        val shadowBlur = previewScale * settings.shadowBlur
+        val shadowColor = Color.Black.copy(alpha = settings.shadowAlpha.coerceIn(0f, 1f))
+        val shape = RoundedCornerShape(cornerRadius)
+
+        if (settings.shadowAlpha > 0f && (settings.shadowBlur > 0f || settings.shadowOffsetY > 0f)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(
+                        x = previewScale * layout.drawX,
+                        y = previewScale * layout.drawY + shadowOffsetY,
+                    )
+                    .size(width = imageWidth, height = imageHeight)
+                    .blur(shadowBlur, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    .background(shadowColor, shape)
+            )
+        }
+        Image(
+            bitmap = bitmap,
+            contentDescription = "封面实时预览",
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = previewScale * layout.drawX, y = previewScale * layout.drawY)
+                .size(width = imageWidth, height = imageHeight)
+                .clip(shape),
+            contentScale = ContentScale.FillBounds
+        )
+    }
+}
+
+@Composable
+private fun CoverSettingSlider(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    suffix: String,
+    enabled: Boolean,
+    onValueChanging: (Float) -> Unit,
+    onValueCommitted: (Float) -> Unit,
+) {
+    var localValue by remember { mutableFloatStateOf(value.coerceIn(valueRange.start, valueRange.endInclusive)) }
+    LaunchedEffect(value) {
+        localValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(formatSettingValue(localValue, suffix), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Slider(
+            value = localValue,
+            onValueChange = {
+                localValue = it
+                onValueChanging(it)
+            },
+            onValueChangeFinished = { onValueCommitted(localValue) },
+            valueRange = valueRange,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+private fun formatSettingValue(value: Float, suffix: String): String =
+    "${value.roundToInt()}$suffix"
+
 // ── 调色板对话框 ──
 
 @Composable
@@ -245,7 +451,8 @@ private fun PaletteColorPickerDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val initColor = parseHexColor("#$initialHex")
+    val normalizedInitialHex = remember(initialHex) { ColorHex.normalizeRgbHex(initialHex) }
+    val initColor = parseHexColor(normalizedInitialHex)
     var hue by remember { mutableFloatStateOf(hueFromColor(initColor)) }
     var sat by remember { mutableFloatStateOf(satFromColor(initColor)) }
     var value by remember { mutableFloatStateOf(valueFromColor(initColor)) }
@@ -262,7 +469,7 @@ private fun PaletteColorPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text("自定义背景色", style = MaterialTheme.typography.titleSmall) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.width(IntrinsicSize.Max)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.width(260.dp)) {
                 Surface(modifier = Modifier.fillMaxWidth().height(50.dp).clip(RoundedCornerShape(8.dp)), color = currentColor, shape = RoundedCornerShape(8.dp)) {}
                 SVPlane(hue = hue, sat = sat, value = value, onSelect = { ns, nv -> sat = ns; value = nv }, modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(8.dp)))
                 HueSlider(hue = hue, onHueChange = { hue = it }, modifier = Modifier.fillMaxWidth().height(18.dp).clip(RoundedCornerShape(9.dp)))
@@ -363,8 +570,7 @@ private fun HueSlider(
 // ── 工具函数 ──
 
 private fun parseHexColor(hex: String): Color = try {
-    val h = hex.removePrefix("#")
-    Color((0xFF shl 24) or h.toInt(16))
+    Color(ColorHex.parseRgbToArgb(hex, fallbackArgb = 0xFF808080.toInt()))
 } catch (_: Exception) { Color.Gray }
 
 private fun hueFromColor(c: Color): Float {

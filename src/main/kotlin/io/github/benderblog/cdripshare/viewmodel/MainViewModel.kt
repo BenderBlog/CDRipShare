@@ -1,8 +1,6 @@
 package io.github.benderblog.cdripshare.viewmodel
 
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -13,9 +11,11 @@ import io.github.benderblog.cdripshare.model.AppState
 import io.github.benderblog.cdripshare.model.AudioItem
 import io.github.benderblog.cdripshare.model.AudioOutputMode
 import io.github.benderblog.cdripshare.model.BackgroundMode
+import io.github.benderblog.cdripshare.model.CoverRenderSettings
 import io.github.benderblog.cdripshare.model.Phase
 import io.github.benderblog.cdripshare.model.VideoCodec
 import io.github.benderblog.cdripshare.util.TempFileManager
+import io.github.benderblog.cdripshare.util.ColorHex
 import io.github.benderblog.cdripshare.util.CoverImageGenerator
 import kotlinx.coroutines.*
 import java.io.File
@@ -25,7 +25,6 @@ import java.time.format.DateTimeFormatter
 class MainViewModel {
     val audioFiles = mutableStateListOf<AudioItem>()
     val imageFile = mutableStateOf<File?>(null)
-    val coverPreview = mutableStateOf<ImageBitmap?>(null)
     val outputDir = mutableStateOf<File?>(null)
     val appState = mutableStateOf(AppState())
     val cueFile = mutableStateOf<File?>(null)
@@ -33,6 +32,8 @@ class MainViewModel {
     val videoCodec = mutableStateOf(VideoCodec.H265)
     val bgMode = mutableStateOf(BackgroundMode.Auto)
     var customColorHex by mutableStateOf("#3C3C3C")
+    var coverRenderSettings by mutableStateOf(CoverRenderSettings())
+    var coverBackgroundColor by mutableStateOf(DEFAULT_COVER_BACKGROUND)
     val logs = mutableStateListOf<String>()
 
     private var workJob: Job? = null
@@ -87,9 +88,8 @@ class MainViewModel {
 
     fun setImageFile(file: File) {
         imageFile.value = file
-        coverPreview.value = null  // 立即清空旧预览
         log("设置图片: ${file.name}")
-        generateCoverPreview(file)
+        refreshCoverBackgroundColor()
     }
 
     fun setOutputDir(dir: File) {
@@ -142,7 +142,7 @@ class MainViewModel {
 
                 // 生成封面图
                 val coverFile = File(outputFile.parentFile, "cover.png")
-                CoverImageGenerator.generate(imageFile.value!!, coverFile, bgMode.value, parseCustomColor())
+                CoverImageGenerator.generate(imageFile.value!!, coverFile, bgMode.value, parseCustomColor(), coverRenderSettings)
                 log("封面图已生成: ${coverFile.absolutePath}")
 
                 videoMuxer.mux(
@@ -195,36 +195,50 @@ class MainViewModel {
 
 
     fun onBgModeChanged() {
-        imageFile.value?.let { generateCoverPreview(it) }
+        refreshCoverBackgroundColor()
     }
 
+    fun onCoverRenderSettingsChanged(settings: CoverRenderSettings) {
+        coverRenderSettings = settings.normalized()
+    }
+
+    fun onCoverRenderSettingsChanging(settings: CoverRenderSettings) {
+        coverRenderSettings = settings.normalized()
+    }
 
     private fun parseCustomColor(): Int {
-        val hex = customColorHex.removePrefix("#")
-        return try {
-            (0xFF shl 24) or (hex.toInt(16) and 0xFFFFFF)
-        } catch (_: NumberFormatException) {
-            0xFF3C3C3CL.toInt()
-        }
+        return ColorHex.parseRgbToArgb(customColorHex)
     }
     fun resetToIdle() {
         appState.value = AppState()
     }
 
-    private fun generateCoverPreview(file: File) {
+    private fun refreshCoverBackgroundColor() {
+        val mode = bgMode.value
+        val customColor = parseCustomColor()
+        val solidColor = CoverImageGenerator.resolveSolidBackgroundColor(mode, customColor)
+        if (solidColor != null) {
+            coverBackgroundColor = solidColor
+            return
+        }
+
+        val file = imageFile.value ?: run {
+            coverBackgroundColor = DEFAULT_COVER_BACKGROUND
+            return
+        }
+        val sourcePath = file.absolutePath
         scope.launch(Dispatchers.IO) {
-            try {
-                val tempCover = File.createTempFile("cover-preview-", ".png")
-                CoverImageGenerator.generate(file, tempCover, bgMode.value, parseCustomColor())
-                val bitmap = org.jetbrains.skia.Image.makeFromEncoded(tempCover.readBytes()).toComposeImageBitmap()
-                withContext(Dispatchers.Main) {
-                    coverPreview.value = bitmap
-                }
-                tempCover.deleteOnExit()
+            var errorMessage: String? = null
+            val resolvedColor = try {
+                CoverImageGenerator.resolveBackgroundColor(file, mode, customColor)
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    log("封面预览生成失败: ${e.message}")
-                    coverPreview.value = null
+                errorMessage = e.message
+                DEFAULT_COVER_BACKGROUND
+            }
+            withContext(Dispatchers.Main) {
+                if (imageFile.value?.absolutePath == sourcePath && bgMode.value == mode) {
+                    errorMessage?.let { log("封面背景色计算失败: $it") }
+                    coverBackgroundColor = resolvedColor
                 }
             }
         }
@@ -240,5 +254,9 @@ class MainViewModel {
         val min = totalSec / 60
         val sec = totalSec % 60
         return "%d:%02d".format(min, sec)
+    }
+
+    private companion object {
+        const val DEFAULT_COVER_BACKGROUND = 0xFF3C3C3CL.toInt()
     }
 }

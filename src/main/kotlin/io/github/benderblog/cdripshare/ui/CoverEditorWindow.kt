@@ -22,7 +22,7 @@ fun CoverEditorWindow(
         Surface(modifier = Modifier.fillMaxSize()) {
             CoverEditorContent(
                 imageFile = viewModel.imageFile.value,
-                coverPreview = viewModel.coverPreview.value,
+                backgroundColorArgb = viewModel.coverBackgroundColor,
                 onSelect = onSelectImage,
                 enabled = !isWorking,
                 bgMode = viewModel.bgMode.value,
@@ -39,7 +39,14 @@ fun CoverEditorWindow(
                         viewModel.bgMode.value = BackgroundMode.Custom
                         viewModel.onBgModeChanged()
                     }
-                }
+                },
+                coverRenderSettings = viewModel.coverRenderSettings,
+                onCoverRenderSettingsChanging = remember(viewModel) {
+                    { settings -> viewModel.onCoverRenderSettingsChanging(settings) }
+                },
+                onCoverRenderSettingsChange = remember(viewModel) {
+                    { settings -> viewModel.onCoverRenderSettingsChanged(settings) }
+                },
             )
         }
     }

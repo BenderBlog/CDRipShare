@@ -12,7 +12,13 @@ dependencies {
     implementation("org.jetbrains.compose.ui:ui-tooling-preview-desktop:${libs.versions.compose.get()}")
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.swing)
+    implementation(libs.material.color.utilities)
     implementation(libs.reorderable)
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 compose.desktop {

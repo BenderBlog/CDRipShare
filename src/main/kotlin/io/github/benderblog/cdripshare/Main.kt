@@ -15,7 +15,7 @@ import io.github.benderblog.cdripshare.viewmodel.MainViewModel
 
 fun main() = application {
     val state = rememberWindowState(width = 1000.dp, height = 750.dp)
-    val coverEditorState = rememberWindowState(width = 760.dp, height = 560.dp)
+    val coverEditorState = rememberWindowState(width = 860.dp, height = 640.dp)
     val viewModel = remember { MainViewModel() }
     var showCoverEditor by remember { mutableStateOf(false) }
 
@@ -37,7 +37,7 @@ fun main() = application {
             state = coverEditorState,
             title = "编辑封面"
         ) {
-            window.minimumSize = java.awt.Dimension(680, 480)
+            window.minimumSize = java.awt.Dimension(760, 540)
             CoverEditorWindow(
                 viewModel = viewModel,
                 onSelectImage = { pickCoverImage(viewModel) }
