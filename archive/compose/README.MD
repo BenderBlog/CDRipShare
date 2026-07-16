@@ -1,4 +1,6 @@
-# CDRipShare - 抓轨分享音频生成器
+# CDRipShare Compose（历史版本）
+
+> 此目录保存已经停止维护的 Compose Desktop 实现。当前主版本位于仓库根目录，使用 Rust 和 egui 开发。
 
 本工具旨在方便抓轨爱好者分享自己购买 CD 的抓轨文件。
 

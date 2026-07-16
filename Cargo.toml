@@ -1,0 +1,23 @@
+[package]
+name = "cdripshare"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "CD 抓轨音频分享视频生成器"
+license = "GPL-2.0-or-later"
+
+[dependencies]
+anyhow = "1.0"
+crossbeam-channel = "0.5"
+eframe = { version = "=0.31.1", features = ["persistence"] }
+ffmpeg-sidecar = "=2.5.2"
+home = "=0.5.9"
+image = { version = "=0.25.6", default-features = false, features = ["jpeg", "png", "webp"] }
+rfd = "=0.15.3"
+serde = { version = "1.0", features = ["derive"] }
+tempfile = "3.20"
+url = "=2.5.2"
+
+[profile.release]
+lto = "thin"
+strip = true
