@@ -50,8 +50,8 @@ cargo check
 
 ## GitHub Actions
 
-- `CI`：每次推送和 Pull Request 在 Linux、Windows、macOS arm64、macOS x64 上检查和测试；
-- `Build packages`：可在 Actions 页面手动运行，生成四个平台安装包；
+- `CI`：每次推送和 Pull Request 在 Linux x64/arm64、Windows x64、macOS arm64/x64 上检查和测试；
+- `Build packages`：可在 Actions 页面手动运行，生成五个平台安装包；
 - `Release`：推送 `v*` Tag 后构建全部平台并创建 GitHub Release。
 
 Windows 包自动下载并内置 `ffmpeg.exe` 与 `ffprobe.exe`。macOS 和 Linux 包不内置 FFmpeg。macOS App 当前未签名和公证，正式分发前仍需配置 Apple Developer 签名。

@@ -26,6 +26,8 @@ jobs:
         include:
           - name: Linux x64
             runner: ubuntu-latest
+          - name: Linux arm64
+            runner: ubuntu-24.04-arm
           - name: Windows x64
             runner: windows-latest
           - name: macOS arm64

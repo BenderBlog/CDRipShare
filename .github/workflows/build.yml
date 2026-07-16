@@ -30,6 +30,10 @@ jobs:
             runner: ubuntu-latest
             artifact: CDRipShare-linux-x64
             asset: CDRipShare-linux-x64.tar.gz
+          - name: Linux arm64
+            runner: ubuntu-24.04-arm
+            artifact: CDRipShare-linux-arm64
+            asset: CDRipShare-linux-arm64.tar.gz
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
